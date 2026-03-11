@@ -1,0 +1,5 @@
+{
+  "name": "TituladorAng",
+  "description": "Sistema de generación de zócalos y títulos en tiempo real para OBS mediante Browser Source y WebSockets.",
+  "requestFramePermissions": []
+}
