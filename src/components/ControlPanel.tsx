@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { io, Socket } from "socket.io-client";
 import { TitlerState, TitlerPreset } from "../types";
+import FontPicker from "./FontPicker";
 import { 
   Play, Square, Save, Settings, Monitor, Palette, Type, 
   Zap, Plus, Trash2, Copy, Image as ImageIcon, Maximize,
@@ -12,9 +13,28 @@ let socket: Socket;
 const ControlPanel: React.FC = () => {
   const [state, setState] = useState<TitlerState | null>(null);
   const [editingPreset, setEditingPreset] = useState<TitlerPreset | null>(null);
+  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    socket = io();
+    socket = io({
+      transports: ['websocket'],
+      upgrade: false
+    });
+    
+    socket.on("connect", () => {
+      console.log("Control Panel: Connected via WebSocket");
+      setConnected(true);
+    });
+
+    socket.on("connect_error", (err) => {
+      console.error("Control Panel: Connection Error:", err.message);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("Control Panel: Disconnected");
+      setConnected(false);
+    });
+
     socket.on("titler-update", (newState: TitlerState) => {
       setState(newState);
       if (!editingPreset && newState.activePresetId) {
@@ -74,10 +94,20 @@ const ControlPanel: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         <header className="flex flex-col md:flex-row items-center justify-between mb-8 border-b border-zinc-800 pb-6 gap-4">
           <div>
-            <h1 className="text-3xl font-black tracking-tighter text-emerald-500">TITULADORANG</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-black tracking-tighter text-emerald-500">TITULADORANG</h1>
+              <div className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} title={connected ? 'Conectado' : 'Desconectado'}></div>
+            </div>
             <p className="text-zinc-500 text-xs mt-1 uppercase tracking-[0.3em] font-bold">Zócalos y Tiras de Noticias (Graft)</p>
           </div>
           <div className="flex gap-4">
+            <button 
+              onClick={() => window.location.reload()} 
+              className="p-3 bg-zinc-900 border border-zinc-800 text-zinc-500 rounded-xl hover:bg-zinc-800 hover:text-zinc-100 transition-all"
+              title="Reiniciar Conexión"
+            >
+              <Zap size={18} />
+            </button>
             <a href="/output" target="_blank" className="flex items-center gap-2 px-6 py-3 bg-zinc-900 border border-zinc-800 text-zinc-100 font-bold rounded-xl hover:bg-zinc-800 transition-all">
               <Monitor size={18} /> SALIDA OBS
             </a>
@@ -166,7 +196,7 @@ const ControlPanel: React.FC = () => {
                   </div>
                 )}
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Ancho (px)</label>
                     <input
@@ -186,6 +216,15 @@ const ControlPanel: React.FC = () => {
                     />
                   </div>
                   <div className="space-y-2">
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Tamaño Letra</label>
+                    <input
+                      type="number"
+                      value={editingPreset.fontSize}
+                      onChange={(e) => setEditingPreset({ ...editingPreset, fontSize: parseInt(e.target.value) || 0 })}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 outline-none text-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
                       {editingPreset.type === 'crawl' ? 'Velocidad' : 'Tipografía'}
                     </label>
@@ -200,17 +239,10 @@ const ControlPanel: React.FC = () => {
                         />
                       </div>
                     ) : (
-                      <select
-                        value={editingPreset.fontFamily}
-                        onChange={(e) => setEditingPreset({ ...editingPreset, fontFamily: e.target.value })}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-3 outline-none text-sm"
-                      >
-                        <option value="Inter">Inter</option>
-                        <option value="Montserrat">Montserrat</option>
-                        <option value="Playfair Display">Playfair</option>
-                        <option value="Space Grotesk">Space Grotesk</option>
-                        <option value="Anton">Anton</option>
-                      </select>
+                      <FontPicker 
+                        value={editingPreset.fontFamily} 
+                        onChange={(font) => setEditingPreset({ ...editingPreset, fontFamily: font })} 
+                      />
                     )}
                   </div>
                 </div>

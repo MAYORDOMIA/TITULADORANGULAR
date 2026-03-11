@@ -10,7 +10,9 @@ async function startServer() {
   const io = new Server(httpServer, {
     cors: {
       origin: "*",
+      methods: ["GET", "POST"]
     },
+    transports: ['websocket', 'polling']
   });
 
   const PORT = 3000;
@@ -32,6 +34,7 @@ async function startServer() {
         position: "bottom-left",
         width: 600,
         height: 180,
+        fontSize: 54,
         backgroundImage: "",
         crawlSpeed: 10,
       },
@@ -49,6 +52,7 @@ async function startServer() {
         position: "full-bottom",
         width: 1920,
         height: 60,
+        fontSize: 36,
         backgroundImage: "",
         crawlSpeed: 15,
       },
@@ -66,6 +70,7 @@ async function startServer() {
         position: "top-left",
         width: 250,
         height: 50,
+        fontSize: 25,
         backgroundImage: "",
         crawlSpeed: 10,
       }
@@ -75,7 +80,8 @@ async function startServer() {
   };
 
   io.on("connection", (socket) => {
-    console.log("Client connected:", socket.id);
+    const transport = socket.conn.transport.name;
+    console.log(`Client connected [${transport}]:`, socket.id);
     
     socket.emit("titler-update", titlerState);
 

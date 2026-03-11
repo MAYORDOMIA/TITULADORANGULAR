@@ -12,6 +12,7 @@ export interface TitlerPreset {
   position: "bottom-left" | "bottom-right" | "top-left" | "top-right" | "center-bottom" | "full-bottom";
   width: number;
   height: number;
+  fontSize: number;
   backgroundImage: string;
   crawlSpeed: number; // Speed for the scrolling text
 }
