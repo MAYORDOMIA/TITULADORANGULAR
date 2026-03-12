@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { io, Socket } from "socket.io-client";
 import { TitlerState, TitlerPreset } from "../types";
-import FontPicker from "./FontPicker";
 import { 
   Play, Square, Save, Settings, Monitor, Palette, Type, 
   Zap, Plus, Trash2, Copy, Image as ImageIcon, Maximize,
@@ -13,28 +12,9 @@ let socket: Socket;
 const ControlPanel: React.FC = () => {
   const [state, setState] = useState<TitlerState | null>(null);
   const [editingPreset, setEditingPreset] = useState<TitlerPreset | null>(null);
-  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    socket = io({
-      transports: ['websocket'],
-      upgrade: false
-    });
-    
-    socket.on("connect", () => {
-      console.log("Control Panel: Connected via WebSocket");
-      setConnected(true);
-    });
-
-    socket.on("connect_error", (err) => {
-      console.error("Control Panel: Connection Error:", err.message);
-    });
-
-    socket.on("disconnect", () => {
-      console.log("Control Panel: Disconnected");
-      setConnected(false);
-    });
-
+    socket = io();
     socket.on("titler-update", (newState: TitlerState) => {
       setState(newState);
       if (!editingPreset && newState.activePresetId) {
@@ -90,24 +70,14 @@ const ControlPanel: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-4 md:p-8">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans p-4 md:p-8 pb-32">
       <div className="max-w-7xl mx-auto">
         <header className="flex flex-col md:flex-row items-center justify-between mb-8 border-b border-zinc-800 pb-6 gap-4">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-black tracking-tighter text-emerald-500">TITULADORANG</h1>
-              <div className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} title={connected ? 'Conectado' : 'Desconectado'}></div>
-            </div>
+            <h1 className="text-3xl font-black tracking-tighter text-emerald-500">TITULADORANG</h1>
             <p className="text-zinc-500 text-xs mt-1 uppercase tracking-[0.3em] font-bold">Zócalos y Tiras de Noticias (Graft)</p>
           </div>
           <div className="flex gap-4">
-            <button 
-              onClick={() => window.location.reload()} 
-              className="p-3 bg-zinc-900 border border-zinc-800 text-zinc-500 rounded-xl hover:bg-zinc-800 hover:text-zinc-100 transition-all"
-              title="Reiniciar Conexión"
-            >
-              <Zap size={18} />
-            </button>
             <a href="/output" target="_blank" className="flex items-center gap-2 px-6 py-3 bg-zinc-900 border border-zinc-800 text-zinc-100 font-bold rounded-xl hover:bg-zinc-800 transition-all">
               <Monitor size={18} /> SALIDA OBS
             </a>
@@ -196,7 +166,7 @@ const ControlPanel: React.FC = () => {
                   </div>
                 )}
 
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Ancho (px)</label>
                     <input
@@ -216,15 +186,6 @@ const ControlPanel: React.FC = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Tamaño Letra</label>
-                    <input
-                      type="number"
-                      value={editingPreset.fontSize}
-                      onChange={(e) => setEditingPreset({ ...editingPreset, fontSize: parseInt(e.target.value) || 0 })}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 outline-none text-sm"
-                    />
-                  </div>
-                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
                       {editingPreset.type === 'crawl' ? 'Velocidad' : 'Tipografía'}
                     </label>
@@ -239,10 +200,17 @@ const ControlPanel: React.FC = () => {
                         />
                       </div>
                     ) : (
-                      <FontPicker 
-                        value={editingPreset.fontFamily} 
-                        onChange={(font) => setEditingPreset({ ...editingPreset, fontFamily: font })} 
-                      />
+                      <select
+                        value={editingPreset.fontFamily}
+                        onChange={(e) => setEditingPreset({ ...editingPreset, fontFamily: e.target.value })}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-3 outline-none text-sm"
+                      >
+                        <option value="Inter">Inter</option>
+                        <option value="Montserrat">Montserrat</option>
+                        <option value="Playfair Display">Playfair</option>
+                        <option value="Space Grotesk">Space Grotesk</option>
+                        <option value="Anton">Anton</option>
+                      </select>
                     )}
                   </div>
                 </div>
@@ -427,6 +395,39 @@ const ControlPanel: React.FC = () => {
               </div>
             </section>
           </div>
+        </div>
+      </div>
+
+      {/* Fixed Bottom Quick Controls */}
+      <div className="fixed bottom-0 left-0 right-0 bg-zinc-950 border-t border-zinc-800 p-4 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <div className="max-w-7xl mx-auto flex items-center gap-4 overflow-x-auto custom-scrollbar pb-2">
+          <div className="text-xs font-black uppercase tracking-widest text-zinc-500 mr-2 flex-shrink-0">
+            ACCESOS RÁPIDOS:
+          </div>
+          {state.presets.map((p) => {
+            const isActiveAndVisible = state.activePresetId === p.id && state.visible;
+            return (
+              <button
+                key={p.id}
+                onClick={() => {
+                  if (isActiveAndVisible) {
+                    socket.emit("toggle-visibility", false);
+                  } else {
+                    socket.emit("set-active-preset", p.id);
+                    socket.emit("toggle-visibility", true);
+                  }
+                }}
+                className={`flex-shrink-0 px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-3 border ${
+                  isActiveAndVisible
+                    ? 'bg-emerald-500 border-emerald-400 text-zinc-950 shadow-[0_0_20px_rgba(16,185,129,0.4)]'
+                    : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white'
+                }`}
+              >
+                <div className={`w-2 h-2 rounded-full ${isActiveAndVisible ? 'bg-zinc-950 animate-pulse' : p.type === 'crawl' ? 'bg-amber-500' : 'bg-blue-500'}`}></div>
+                {p.label}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

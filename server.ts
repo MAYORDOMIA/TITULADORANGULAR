@@ -14,7 +14,7 @@ async function startServer() {
     },
   });
 
-  const PORT = process.env.PORT || 3000;
+  const PORT = parseInt(process.env.PORT || "3000", 10);
 
   // OBS WebSocket Server
   const wss = new WebSocketServer({ noServer: true });
