@@ -1,6 +1,7 @@
 import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import { WebSocketServer } from "ws";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 
@@ -13,7 +14,42 @@ async function startServer() {
     },
   });
 
-  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+  const PORT = process.env.PORT || 3000;
+
+  // OBS WebSocket Server
+  const wss = new WebSocketServer({ noServer: true });
+
+  wss.on("connection", (ws, request) => {
+    console.log("OBS WebSocket client connected");
+
+    ws.on("message", (message) => {
+      console.log("Received from OBS:", message.toString());
+      try {
+        const data = JSON.parse(message.toString());
+        // Handle OBS messages here
+        // For example, broadcasting to socket.io clients:
+        // io.emit("obs-message", data);
+      } catch (e) {
+        console.error("Error parsing OBS message:", e);
+      }
+    });
+
+    ws.on("close", () => {
+      console.log("OBS WebSocket client disconnected");
+    });
+
+    ws.send(JSON.stringify({ type: "connection_established", message: "Connected to Generation System" }));
+  });
+
+  httpServer.on("upgrade", (request, socket, head) => {
+    const pathname = request.url ? new URL(request.url, `http://${request.headers.host}`).pathname : "";
+
+    if (pathname === "/obs") {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit("connection", ws, request);
+      });
+    }
+  });
 
   // Titler State
   let titlerState = {
