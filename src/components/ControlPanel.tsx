@@ -137,7 +137,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ userId }) => {
             <p className="text-zinc-500 text-xs mt-1 uppercase tracking-[0.3em] font-bold">Zócalos y Tiras de Noticias (Graft)</p>
           </div>
           <div className="flex gap-4">
-            <a href="/output" target="_blank" className="flex items-center gap-2 px-6 py-3 bg-zinc-900 border border-zinc-800 text-zinc-100 font-bold rounded-xl hover:bg-zinc-800 transition-all">
+            <a href={`/output/${userId}`} target="_blank" className="flex items-center gap-2 px-6 py-3 bg-zinc-900 border border-zinc-800 text-zinc-100 font-bold rounded-xl hover:bg-zinc-800 transition-all">
               <Monitor size={18} /> SALIDA OBS
             </a>
           </div>

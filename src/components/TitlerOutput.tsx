@@ -12,13 +12,18 @@ const TitlerOutput: React.FC<TitlerOutputProps> = ({ userId }) => {
   const [state, setState] = useState<TitlerState | null>(null);
 
   useEffect(() => {
+    document.body.style.backgroundColor = 'transparent';
+    
     const sessionRef = doc(db, 'sessions', userId);
     const unsubscribe = onSnapshot(sessionRef, (docSnap) => {
       if (docSnap.exists()) {
         setState(docSnap.data() as TitlerState);
       }
     });
-    return () => unsubscribe();
+    return () => {
+      document.body.style.backgroundColor = '';
+      unsubscribe();
+    };
   }, [userId]);
 
   if (!state || !state.activePresetId) return null;

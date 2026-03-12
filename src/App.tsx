@@ -3,25 +3,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import ControlPanel from "./components/ControlPanel";
 import TitlerOutput from "./components/TitlerOutput";
 import { auth, loginWithGoogle, logout } from "./firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
 
-export default function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [authReady, setAuthReady] = useState(false);
+function TitlerOutputWrapper() {
+  const { userId } = useParams();
+  if (!userId) return null;
+  return <TitlerOutput userId={userId} />;
+}
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setAuthReady(true);
-    });
-    return () => unsubscribe();
-  }, []);
-
+function MainApp({ user, authReady }: { user: User | null, authReady: boolean }) {
   if (!authReady) {
     return (
       <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center">
@@ -42,7 +37,7 @@ export default function App() {
           </div>
           <h1 className="text-2xl font-bold mb-2">Acceso Requerido</h1>
           <p className="text-zinc-400 mb-8">
-            Inicia sesión con Google para acceder al panel de control o conectar los gráficos en OBS.
+            Inicia sesión con Google para acceder al panel de control.
           </p>
           <button 
             onClick={loginWithGoogle}
@@ -57,34 +52,49 @@ export default function App() {
   }
 
   return (
+    <div className="min-h-screen bg-zinc-950 text-white">
+      <header className="bg-zinc-900 border-b border-zinc-800 p-4 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-950"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10"/><path d="M7 12h10"/><path d="M7 17h10"/></svg>
+          </div>
+          <h1 className="text-xl font-bold tracking-tight">Arista Titler</h1>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-sm text-zinc-400">
+            <img src={user.photoURL || ''} alt="Profile" className="w-6 h-6 rounded-full" />
+            {user.email}
+          </div>
+          <button 
+            onClick={logout}
+            className="text-xs font-medium text-zinc-500 hover:text-white transition-colors"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </header>
+      <ControlPanel userId={user.uid} />
+    </div>
+  );
+}
+
+export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthReady(true);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={
-          <div className="min-h-screen bg-zinc-950 text-white">
-            <header className="bg-zinc-900 border-b border-zinc-800 p-4 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-950"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10"/><path d="M7 12h10"/><path d="M7 17h10"/></svg>
-                </div>
-                <h1 className="text-xl font-bold tracking-tight">Arista Titler</h1>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 text-sm text-zinc-400">
-                  <img src={user.photoURL || ''} alt="Profile" className="w-6 h-6 rounded-full" />
-                  {user.email}
-                </div>
-                <button 
-                  onClick={logout}
-                  className="text-xs font-medium text-zinc-500 hover:text-white transition-colors"
-                >
-                  Cerrar sesión
-                </button>
-              </div>
-            </header>
-            <ControlPanel userId={user.uid} />
-          </div>
-        } />
-        <Route path="/output" element={<TitlerOutput userId={user.uid} />} />
+        <Route path="/output/:userId" element={<TitlerOutputWrapper />} />
+        <Route path="*" element={<MainApp user={user} authReady={authReady} />} />
       </Routes>
     </BrowserRouter>
   );
