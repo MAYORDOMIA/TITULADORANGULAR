@@ -5,9 +5,10 @@ import { WebSocketServer } from "ws";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 
+const app = express();
+const httpServer = createServer(app);
+
 async function startServer() {
-  const app = express();
-  const httpServer = createServer(app);
   const io = new Server(httpServer, {
     cors: {
       origin: "*",
@@ -149,9 +150,13 @@ async function startServer() {
     });
   }
 
-  httpServer.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
+    httpServer.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
 }
 
 startServer();
+
+export default app;

@@ -417,14 +417,14 @@ const ControlPanel: React.FC = () => {
                     socket.emit("toggle-visibility", true);
                   }
                 }}
-                className={`flex-shrink-0 px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-3 border ${
+                className={`flex-shrink-0 w-24 h-24 rounded-xl font-bold text-xs transition-all flex flex-col items-center justify-center gap-2 border text-center p-2 ${
                   isActiveAndVisible
-                    ? 'bg-emerald-500 border-emerald-400 text-zinc-950 shadow-[0_0_20px_rgba(16,185,129,0.4)]'
+                    ? 'bg-red-600 border-red-500 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)]'
                     : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white'
                 }`}
               >
-                <div className={`w-2 h-2 rounded-full ${isActiveAndVisible ? 'bg-zinc-950 animate-pulse' : p.type === 'crawl' ? 'bg-amber-500' : 'bg-blue-500'}`}></div>
-                {p.label}
+                <div className={`w-3 h-3 rounded-full ${isActiveAndVisible ? 'bg-white animate-pulse shadow-[0_0_10px_rgba(255,255,255,0.8)]' : p.type === 'crawl' ? 'bg-amber-500' : 'bg-blue-500'}`}></div>
+                <span className="line-clamp-2 leading-tight">{p.label}</span>
               </button>
             );
           })}
