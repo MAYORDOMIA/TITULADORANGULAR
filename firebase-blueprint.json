@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "TitlerPreset": {
+      "title": "Titler Preset",
+      "description": "A single graphic preset configuration",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "type": { "type": "string", "enum": ["static", "crawl", "section"] },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "primaryColor": { "type": "string" },
+        "secondaryColor": { "type": "string" },
+        "textColor": { "type": "string" },
+        "fontFamily": { "type": "string" },
+        "animationType": { "type": "string", "enum": ["slide", "fade", "scale", "bounce"] },
+        "position": { "type": "string", "enum": ["bottom-left", "bottom-right", "top-left", "top-right", "center-bottom", "full-bottom"] },
+        "width": { "type": "number" },
+        "height": { "type": "number" },
+        "backgroundImage": { "type": "string" },
+        "crawlSpeed": { "type": "number" }
+      },
+      "required": ["id", "label", "type", "name", "role", "primaryColor", "secondaryColor", "textColor", "fontFamily", "animationType", "position", "width", "height", "backgroundImage", "crawlSpeed"]
+    },
+    "TitlerState": {
+      "title": "Titler State",
+      "description": "The complete state of the graphics system for a user session",
+      "type": "object",
+      "properties": {
+        "presets": {
+          "type": "array",
+          "items": { "$ref": "#/entities/TitlerPreset" }
+        },
+        "activePresetId": { "type": ["string", "null"] },
+        "visible": { "type": "boolean" },
+        "ownerId": { "type": "string", "description": "The UID of the user who owns this session" }
+      },
+      "required": ["presets", "visible", "ownerId"]
+    }
+  },
+  "firestore": {
+    "sessions/{userId}": {
+      "schema": { "$ref": "#/entities/TitlerState" },
+      "description": "Stores the live graphics state for a specific user's broadcast session"
+    }
+  }
+}

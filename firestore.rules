@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: sessions
+    // Document ID: {userId}
+    // Fields:
+    //   - ownerId: string (required) - The UID of the user who owns this session
+    //   - visible: boolean (required) - Whether the graphic is currently visible
+    //   - activePresetId: string | null - The ID of the currently active preset
+    //   - presets: list (required) - List of TitlerPreset objects
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.ownerId;
+    }
+
+    function uidUnchanged() {
+      return !('ownerId' in request.resource.data) ||
+        request.resource.data.ownerId == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('ownerId' in request.resource.data) ||
+        request.resource.data.ownerId == resource.data.ownerId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidPreset(preset) {
+      return preset is map &&
+        preset.keys().hasAll(['id', 'label', 'type', 'name', 'role', 'primaryColor', 'secondaryColor', 'textColor', 'fontFamily', 'animationType', 'position', 'width', 'height', 'backgroundImage', 'crawlSpeed']) &&
+        preset.id is string && preset.id.size() > 0 && preset.id.size() < 100 &&
+        preset.label is string && preset.label.size() < 100 &&
+        preset.type in ['static', 'crawl', 'section'] &&
+        preset.name is string && preset.name.size() < 200 &&
+        preset.role is string && preset.role.size() < 200 &&
+        preset.primaryColor is string && preset.primaryColor.size() < 30 &&
+        preset.secondaryColor is string && preset.secondaryColor.size() < 30 &&
+        preset.textColor is string && preset.textColor.size() < 30 &&
+        preset.fontFamily is string && preset.fontFamily.size() < 100 &&
+        preset.animationType in ['slide', 'fade', 'scale', 'bounce'] &&
+        preset.position in ['bottom-left', 'bottom-right', 'top-left', 'top-right', 'center-bottom', 'full-bottom'] &&
+        preset.width is number && preset.width >= 0 &&
+        preset.height is number && preset.height >= 0 &&
+        preset.backgroundImage is string && preset.backgroundImage.size() < 2000 &&
+        preset.crawlSpeed is number && preset.crawlSpeed >= 0;
+    }
+
+    function areValidPresets(presets) {
+      return presets is list && presets.size() <= 100;
+      // Note: Deep array inspection is limited in security rules without complex workarounds,
+      // but we enforce size limits to prevent DoS.
+    }
+
+    function isValidSession(data) {
+      return hasOnlyAllowedFields(['ownerId', 'visible', 'activePresetId', 'presets']) &&
+             data.ownerId is string && data.ownerId.size() > 0 && data.ownerId.size() < 100 &&
+             data.visible is bool &&
+             (data.activePresetId == null || (data.activePresetId is string && data.activePresetId.size() < 100)) &&
+             areValidPresets(data.presets);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+    match /sessions/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidSession(request.resource.data) && uidUnchanged();
+      allow update: if isOwner(userId) && isValidSession(request.resource.data) && uidNotModified();
+      allow delete: if isOwner(userId);
+    }
+  }
+}

@@ -1,37 +1,96 @@
 import React, { useState, useEffect } from "react";
-import { io, Socket } from "socket.io-client";
 import { TitlerState, TitlerPreset } from "../types";
+import { db } from "../firebase";
+import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
 import { 
   Play, Square, Save, Settings, Monitor, Palette, Type, 
   Zap, Plus, Trash2, Copy, Image as ImageIcon, Maximize,
   FastForward, Layout
 } from "lucide-react";
 
-let socket: Socket;
+interface ControlPanelProps {
+  userId: string;
+}
 
-const ControlPanel: React.FC = () => {
+const defaultPreset: TitlerPreset = {
+  id: "default",
+  label: "Zócalo Principal",
+  type: "static",
+  name: "JUAN PÉREZ",
+  role: "Director de Operaciones",
+  primaryColor: "#10b981",
+  secondaryColor: "#09090b",
+  textColor: "#ffffff",
+  fontFamily: "Inter",
+  animationType: "slide",
+  position: "bottom-left",
+  width: 600,
+  height: 120,
+  backgroundImage: "",
+  crawlSpeed: 10
+};
+
+const defaultState: TitlerState = {
+  presets: [defaultPreset],
+  activePresetId: "default",
+  visible: false,
+  ownerId: "" // Will be set on init
+};
+
+const ControlPanel: React.FC<ControlPanelProps> = ({ userId }) => {
   const [state, setState] = useState<TitlerState | null>(null);
   const [editingPreset, setEditingPreset] = useState<TitlerPreset | null>(null);
 
   useEffect(() => {
-    socket = io();
-    socket.on("titler-update", (newState: TitlerState) => {
-      setState(newState);
-      if (!editingPreset && newState.activePresetId) {
-        const active = newState.presets.find(p => p.id === newState.activePresetId);
-        if (active) setEditingPreset(active);
+    const sessionRef = doc(db, 'sessions', userId);
+    
+    // Initialize if it doesn't exist
+    const initSession = async () => {
+      const docSnap = await getDoc(sessionRef);
+      if (!docSnap.exists()) {
+        await setDoc(sessionRef, { ...defaultState, ownerId: userId });
       }
+    };
+    initSession();
+
+    const unsubscribe = onSnapshot(sessionRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const newState = docSnap.data() as TitlerState;
+        setState(newState);
+        
+        // Only set editing preset if we don't have one, or if it was deleted
+        setEditingPreset(current => {
+          if (!current && newState.activePresetId) {
+            return newState.presets.find(p => p.id === newState.activePresetId) || newState.presets[0];
+          }
+          if (current && !newState.presets.find(p => p.id === current.id)) {
+            return newState.presets[0];
+          }
+          return current;
+        });
+      }
+    }, (error) => {
+      console.error("Firestore Error: ", error);
     });
-    return () => { socket.disconnect(); };
-  }, []);
+
+    return () => unsubscribe();
+  }, [userId]);
 
   if (!state || !editingPreset) return <div className="p-8 text-zinc-500">Cargando sistema...</div>;
+
+  const updateState = async (newState: TitlerState) => {
+    try {
+      await setDoc(doc(db, 'sessions', userId), { ...newState, ownerId: userId });
+    } catch (error) {
+      console.error("Error updating state:", error);
+    }
+  };
 
   const handleSavePreset = () => {
     if (!state) return;
     const newPresets = state.presets.map(p => p.id === editingPreset.id ? editingPreset : p);
     const newState = { ...state, presets: newPresets };
-    socket.emit("update-state", newState);
+    updateState(newState);
   };
 
   const addNewPreset = () => {
@@ -44,7 +103,7 @@ const ControlPanel: React.FC = () => {
       crawlSpeed: 10
     };
     const newState = { ...state, presets: [...state.presets, newPreset], activePresetId: newId };
-    socket.emit("update-state", newState);
+    updateState(newState);
     setEditingPreset(newPreset);
   };
 
@@ -53,7 +112,7 @@ const ControlPanel: React.FC = () => {
     const newPresets = state.presets.filter(p => p.id !== id);
     const nextActive = newPresets[0].id;
     const newState = { ...state, presets: newPresets, activePresetId: nextActive };
-    socket.emit("update-state", newState);
+    updateState(newState);
     setEditingPreset(newPresets[0]);
   };
 
@@ -61,12 +120,12 @@ const ControlPanel: React.FC = () => {
     const preset = state.presets.find(p => p.id === id);
     if (preset) {
       setEditingPreset(preset);
-      socket.emit("set-active-preset", id);
+      updateState({ ...state, activePresetId: id });
     }
   };
 
   const toggleVisibility = () => {
-    socket.emit("toggle-visibility", !state.visible);
+    updateState({ ...state, visible: !state.visible });
   };
 
   return (
@@ -411,20 +470,39 @@ const ControlPanel: React.FC = () => {
                 key={p.id}
                 onClick={() => {
                   if (isActiveAndVisible) {
-                    socket.emit("toggle-visibility", false);
+                    updateState({ ...state, visible: false });
                   } else {
-                    socket.emit("set-active-preset", p.id);
-                    socket.emit("toggle-visibility", true);
+                    updateState({ ...state, activePresetId: p.id, visible: true });
                   }
                 }}
-                className={`flex-shrink-0 w-24 h-24 rounded-xl font-bold text-xs transition-all flex flex-col items-center justify-center gap-2 border text-center p-2 ${
+                className={`relative flex-shrink-0 w-44 h-28 rounded-xl transition-all flex flex-col justify-between p-3 border-2 text-left ${
                   isActiveAndVisible
-                    ? 'bg-red-600 border-red-500 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)]'
-                    : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white'
+                    ? 'bg-[#13141c] border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                    : 'bg-[#13141c] border-zinc-800 text-zinc-400 hover:border-zinc-700'
                 }`}
               >
-                <div className={`w-3 h-3 rounded-full ${isActiveAndVisible ? 'bg-white animate-pulse shadow-[0_0_10px_rgba(255,255,255,0.8)]' : p.type === 'crawl' ? 'bg-amber-500' : 'bg-blue-500'}`}></div>
-                <span className="line-clamp-2 leading-tight">{p.label}</span>
+                {/* Top row: Dot indicator */}
+                <div className="w-full flex justify-end">
+                  <div className={`w-2.5 h-2.5 rounded-full ${isActiveAndVisible ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-zinc-700'}`}></div>
+                </div>
+                
+                {/* Bottom row: Label and Status */}
+                <div className="w-full flex justify-between items-end gap-2">
+                  <span className={`font-bold text-sm truncate pb-0.5 ${isActiveAndVisible ? 'text-white' : 'text-zinc-400'}`}>
+                    {p.label}
+                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    {isActiveAndVisible && (
+                      <div className="bg-emerald-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                        VIVO
+                      </div>
+                    )}
+                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">
+                      {p.animationType || 'FADE'}
+                    </span>
+                  </div>
+                </div>
               </button>
             );
           })}

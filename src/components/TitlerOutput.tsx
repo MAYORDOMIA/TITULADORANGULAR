@@ -1,77 +1,29 @@
 import React, { useState, useEffect } from "react";
-import { io } from "socket.io-client";
 import { motion, AnimatePresence } from "motion/react";
 import { TitlerState, TitlerPreset } from "../types";
+import { db } from "../firebase";
+import { doc, onSnapshot } from "firebase/firestore";
 
-const TitlerOutput: React.FC = () => {
+interface TitlerOutputProps {
+  userId: string;
+}
+
+const TitlerOutput: React.FC<TitlerOutputProps> = ({ userId }) => {
   const [state, setState] = useState<TitlerState | null>(null);
-  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    const socket = io({
-      transports: ['websocket'],
-      upgrade: false,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
+    const sessionRef = doc(db, 'sessions', userId);
+    const unsubscribe = onSnapshot(sessionRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setState(docSnap.data() as TitlerState);
+      }
     });
-    
-    socket.on("connect", () => {
-      console.log("OBS Output: Connected to server via WebSocket");
-      setConnected(true);
-    });
+    return () => unsubscribe();
+  }, [userId]);
 
-    socket.on("connect_error", (err) => {
-      console.error("OBS Output: Connection Error:", err.message);
-    });
-
-    socket.on("disconnect", (reason) => {
-      console.log("OBS Output: Disconnected:", reason);
-      setConnected(false);
-    });
-
-    socket.on("titler-update", (newState: TitlerState) => {
-      setState(newState);
-    });
-
-    return () => { socket.disconnect(); };
-  }, []);
-
-  if (!connected) {
-    return (
-      <div className="w-screen h-screen flex items-center justify-center bg-zinc-950 text-zinc-500 font-mono text-xs uppercase tracking-[0.3em]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-2 border-zinc-800 border-t-emerald-500 rounded-full animate-spin"></div>
-          Esperando Conexión...
-        </div>
-      </div>
-    );
-  }
-
-  if (!state || !state.activePresetId) {
-    return (
-      <div className="w-screen h-screen flex items-center justify-center bg-transparent text-zinc-500/20 font-mono text-[10px] uppercase tracking-widest">
-        Sistema Listo - Sin Preset Activo
-      </div>
-    );
-  }
+  if (!state || !state.activePresetId) return null;
 
   const activePreset = state.presets.find(p => p.id === state.activePresetId);
-
-  useEffect(() => {
-    if (activePreset?.fontFamily) {
-      const fontId = 'dynamic-google-font';
-      let link = document.getElementById(fontId) as HTMLLinkElement;
-      if (!link) {
-        link = document.createElement('link');
-        link.id = fontId;
-        link.rel = 'stylesheet';
-        document.head.appendChild(link);
-      }
-      const fontName = activePreset.fontFamily || 'Inter';
-      link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/ /g, '+')}&display=swap`;
-    }
-  }, [activePreset?.fontFamily]);
-
   if (!activePreset) return null;
 
   const getPositionClasses = () => {
@@ -85,7 +37,7 @@ const TitlerOutput: React.FC = () => {
     }
   };
 
-  const getAnimationProps = (): any => {
+  const getAnimationProps = () => {
     switch (activePreset.animationType) {
       case "fade":
         return {
@@ -122,11 +74,6 @@ const TitlerOutput: React.FC = () => {
 
   return (
     <div className="w-screen h-screen overflow-hidden relative bg-transparent">
-      {!state.visible && (
-        <div className="absolute top-4 right-4 text-[10px] font-mono text-zinc-500/30 uppercase tracking-widest pointer-events-none">
-          Standby - {activePreset?.label}
-        </div>
-      )}
       <AnimatePresence mode="wait">
         {state.visible && (
           <motion.div
@@ -159,7 +106,7 @@ const TitlerOutput: React.FC = () => {
                     style={{ 
                       color: activePreset.textColor, 
                       fontFamily: activePreset.fontFamily,
-                      fontSize: `${activePreset.fontSize || activePreset.height * 0.3}px`,
+                      fontSize: `${activePreset.height * 0.3}px`,
                       lineHeight: '1.1',
                       fontWeight: 900,
                       letterSpacing: '-0.02em'
@@ -176,7 +123,7 @@ const TitlerOutput: React.FC = () => {
                       color: activePreset.textColor, 
                       opacity: 0.8,
                       fontFamily: activePreset.fontFamily,
-                      fontSize: `${(activePreset.fontSize || activePreset.height * 0.3) * 0.4}px`,
+                      fontSize: `${activePreset.height * 0.12}px`,
                       fontWeight: 500,
                       marginTop: '0.2rem'
                     }}
@@ -214,7 +161,7 @@ const TitlerOutput: React.FC = () => {
                     style={{ 
                       color: activePreset.textColor, 
                       fontFamily: activePreset.fontFamily,
-                      fontSize: `${activePreset.fontSize || activePreset.height * 0.6}px`,
+                      fontSize: `${activePreset.height * 0.6}px`,
                       fontWeight: 800,
                       whiteSpace: "nowrap",
                       paddingLeft: "50px"
@@ -245,7 +192,7 @@ const TitlerOutput: React.FC = () => {
                     style={{ 
                       color: activePreset.textColor, 
                       fontFamily: activePreset.fontFamily,
-                      fontSize: `${activePreset.fontSize || activePreset.height * 0.5}px`,
+                      fontSize: `${activePreset.height * 0.5}px`,
                       fontWeight: 900,
                       textTransform: "uppercase",
                       letterSpacing: "0.1em"

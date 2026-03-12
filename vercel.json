@@ -7,25 +7,9 @@
       "config": {
         "distDir": "dist"
       }
-    },
-    {
-      "src": "server.ts",
-      "use": "@vercel/node"
     }
   ],
   "routes": [
-    {
-      "src": "/socket.io/(.*)",
-      "dest": "/server.ts"
-    },
-    {
-      "src": "/obs",
-      "dest": "/server.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
-    },
     {
       "src": "/(.*)",
       "dest": "/index.html"
